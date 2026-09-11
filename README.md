@@ -112,3 +112,33 @@ Para crear o actualizar un equipo solo se envían `nombre` (3–80 caracteres) y
 4. Lista los equipos con `GET /equipos/`.
 5. Actualiza uno con `PUT /equipos/{equipo_id}` (prueba también con un id inexistente → `404`, y con el nombre de otro equipo ya registrado → `400`).
 6. Elimina uno con `DELETE /equipos/{equipo_id}` (prueba también eliminarlo dos veces → la segunda debe dar `404`).
+   
+1. ¿Qué recibe PUT y qué devuelve?
+Recibe dos cosas: el equipo_id (viene en la URL) y un body tipo EquipoCreate (con nombre y categoria). Devuelve el equipo ya actualizado, como EquipoResponse (incluye id y disponible, que no se tocan).
+
+2. ¿Cómo localiza el equipo por id?
+Reutiliza obtener_equipo(equipo_id), que recorre la lista _equipos comparando e["id"] == equipo_id. Si lo encuentra, devuelve ese diccionario; si no, ya lanza el 404 automáticamente.
+
+3. ¿Cómo valida el nombre duplicado excluyendo al propio equipo? ¿Por qué importa?
+Con any(e["nombre"].lower() == equipo.nombre.lower() and e["id"] != equipo_id for e in _equipos). La condición e["id"] != equipo_id es la clave: sin ella, cada vez que actualices un equipo dejándole el mismo nombre que ya tenía, el sistema lo vería como "duplicado" (porque se compara contra sí mismo) y siempre daría error 400, incluso sin cambiar nada.
+
+4. ¿Cómo maneja "no encontrado"? ¿Qué código y por qué?
+No lo maneja directamente — delega en obtener_equipo, que lanza HTTPException(404). Se usa 404 porque semánticamente significa "el recurso solicitado no existe en el servidor", que es exactamente el caso.
+
+5. ¿Qué recibe DELETE y qué devuelve?
+Recibe solo el equipo_id. No devuelve contenido (204 No Content) — es el estándar HTTP para "la operación fue exitosa pero no hay nada que mostrar de vuelta".
+
+6. ¿Cómo elimina el equipo?
+Primero obtiene la referencia con obtener_equipo(equipo_id), y luego usa _equipos.remove(equipo_existente) para quitar ese diccionario específico de la lista.
+
+7. ¿Cómo maneja "no encontrado" en DELETE?
+Igual que en PUT: al llamar obtener_equipo primero, si no existe lanza 404 antes de siquiera intentar eliminar nada.
+
+8. ¿Por qué separar lógica (service) de endpoints (router)?
+El router se encarga solo de "recibir la petición HTTP y devolver una respuesta HTTP" (la capa de transporte). El service contiene las reglas de negocio (qué es un nombre duplicado, cómo se guarda un equipo), sin saber nada de HTTP. Ventaja: puedes cambiar cómo se expone la API (agregar otra ruta, otro framework) sin tocar la lógica, o testear la lógica de negocio sin necesitar un servidor corriendo.
+
+9. ¿Qué papel juegan EquipoCreate y EquipoResponse?
+EquipoCreate valida los datos de entrada (lo que el cliente envía): fuerza que nombre y categoria cumplan longitud mínima/máxima antes de que lleguen a tu lógica. EquipoResponse define la forma de salida: qué campos exactamente ve el cliente en la respuesta (incluyendo id y disponible, que el cliente no envía pero sí recibe).
+
+10. ¿Qué es HTTPException y por qué se usa?
+Es una clase de FastAPI que, al lanzarla (raise), detiene la ejecución e inmediatamente devuelve una respuesta HTTP con el status_code y detail que le indiques. Se usa porque permite manejar errores de negocio (equipo no encontrado, nombre duplicado) de forma limpia, sin tener que envolver cada función en if/else gigantes dentro del router.
