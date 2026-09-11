@@ -27,17 +27,21 @@ api_minimal/
 
 1. (Opcional pero recomendado) Crear y activar un entorno virtual:
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate      # Linux / macOS
-   # venv\Scripts\activate       # Windows
-   ```
+```bash
+   python -m venv .venv
+
+   # Linux / macOS
+   source .venv/bin/activate
+
+   # Windows (PowerShell)
+   .venv\Scripts\Activate.ps1
+```
 
 2. Instalar las dependencias:
 
-   ```bash
+```bash
    pip install -r requirements.txt
-   ```
+```
 
 ## Ejecución
 
@@ -61,13 +65,17 @@ Con la app corriendo, abre en el navegador:
 
 Swagger te permite probar cada endpoint de forma interactiva sin escribir código.
 
-## Endpoints ya implementados
+## Endpoints implementados
+
+El CRUD de equipos está **completo**:
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | `GET` | `/equipos/` | Lista todos los equipos |
 | `GET` | `/equipos/{equipo_id}` | Obtiene un equipo por su id |
 | `POST` | `/equipos/` | Crea un nuevo equipo |
+| `PUT` | `/equipos/{equipo_id}` | Actualiza el nombre y la categoría de un equipo existente |
+| `DELETE` | `/equipos/{equipo_id}` | Elimina un equipo por su id |
 
 Modelo de un equipo:
 
@@ -80,110 +88,27 @@ Modelo de un equipo:
 }
 ```
 
-Para crear un equipo solo se envían `nombre` (3–80 caracteres) y `categoria` (3–50 caracteres); el `id` y `disponible` los genera la API.
+Para crear o actualizar un equipo solo se envían `nombre` (3–80 caracteres) y `categoria` (3–50 caracteres); el `id` y `disponible` los genera/mantiene la API.
 
----
+### Manejo de errores
 
-## 🎯 El reto: completar el CRUD
+| Código | Cuándo ocurre |
+|--------|----------------|
+| `404` | El `equipo_id` no corresponde a ningún equipo registrado (en `GET /{id}`, `PUT` y `DELETE`) |
+| `400` | En `PUT`, el nuevo nombre ya pertenece a **otro** equipo distinto al que se está actualizando |
+| `422` | El cuerpo enviado no cumple con las validaciones de `EquipoCreate` (longitud de `nombre`/`categoria`, tipos, etc.) |
 
-La API ya permite **crear** y **leer** equipos. Tu tarea es implementar los dos endpoints que faltan del CRUD:
+## Arquitectura
 
-### 1. Actualizar un equipo — `PUT /equipos/{equipo_id}`
+- **`routers/equipos.py`**: define las rutas HTTP (`GET`, `POST`, `PUT`, `DELETE`) y delega toda la lógica de negocio al servicio.
+- **`services/equipo_service.py`**: contiene la lógica de negocio y el almacenamiento en memoria (`_equipos`). Funciones: `listar_equipos`, `obtener_equipo`, `crear_equipo`, `actualizar_equipo`, `eliminar_equipo`. Los errores de negocio (equipo no encontrado, nombre duplicado) se lanzan aquí mediante `HTTPException`.
+- **`schemas/equipo.py`**: modelos Pydantic reutilizados en todos los endpoints: `EquipoCreate` (entrada) y `EquipoResponse` (salida).
 
-- Recibe el `equipo_id` (int) y en el cuerpo los datos a actualizar (`EquipoCreate`: `nombre`, `categoria`).
-- Actualiza el equipo con ese id y devuelve el equipo actualizado.
-- Si no existe un equipo con ese id, devuelve **HTTP 404** ("Equipo no encontrado").
-- Si el nuevo `nombre` ya pertenece a **otro** equipo, devuelve **HTTP 400** (nombre duplicado).
+## Cómo probar
 
-### 2. Eliminar un equipo — `DELETE /equipos/{equipo_id}`
-
-- Recibe el `equipo_id` (int).
-- Elimina el equipo con ese id y lo devuelve como respuesta.
-- Si no existe un equipo con ese id, devuelve **HTTP 404** ("Equipo no encontrado").
-
-### Requisitos de implementación
-
-- Sigue la **arquitectura por capas** del proyecto:
-  - Escribe la lógica en `app/services/equipo_service.py` (p. ej. `actualizar_equipo(equipo_id, datos)` y `eliminar_equipo(equipo_id)`).
-  - Expón los endpoints en `app/routers/equipos.py` (declarados con `@router.put(...)` y `@router.delete(...)`).
-- Reutiliza `app/schemas/equipo.py` (`EquipoCreate` y `EquipoResponse`) para los modelos de entrada/salida.
-- Investiga cómo lo hacen las funciones ya existentes (`crear_equipo`, `obtener_equipo`) para replicar el estilo y el manejo de errores con `HTTPException`.
-
-### Pistas
-
-- El listado de equipos vive en memoria en la variable `_equipos` de `equipo_service.py`, y cada equipo es un `dict` con claves `id`, `nombre`, `categoria`, `disponible`.
-- Para actualizar/eliminar puedes recorrer la lista y comparar `e["id"] == equipo_id`, igual que hace `obtener_equipo`.
-- En `actualizar` recuerda comprobar que el nuevo nombre no esté duplicado **salvo en el propio equipo** que se está editando.
-
----
-
-## 📤 Entrega y evidencia
-
-Completar los dos endpoints y probar que la API queda con el **CRUD completo** (crear, leer, actualizar, borrar). La entrega debe incluir **dos partes**:
-
-### Parte 1 — Captura de pantalla del Swagger UI
-
-Con la app corriendo, abre **Swagger UI** (`http://127.0.0.1:8000/docs`) y prueba los endpoints. Sube una **captura de pantalla** donde se vean los endpoints y al menos una prueba de cada operación del CRUD (típicamente: crear, listar, actualizar y eliminar un equipo, mostrando las respuestas con código 200/201).
-
-### Parte 2 — Explicación escrita
-
-Debes demostrar que **entiendes lo que construiste**, explicando con tus propias palabras cómo implementaste cada endpoint. Responde las siguientes preguntas:
-
-**Sobre `PUT /equipos/{equipo_id}` (actualizar):**
-1. ¿Qué recibe el endpoint y qué devuelve?
-2. ¿Cómo localiza el equipo a actualizar dentro de la lista (por `id`)?
-3. ¿Cómo valida el nombre duplicado excluyendo al propio equipo que se edita? ¿Por qué es importante esa exclusión?
-4. ¿Cómo maneja el caso de "equipo no encontrado"? ¿Qué código HTTP devuelve y por qué?
-
-**Sobre `DELETE /equipos/{equipo_id}` (eliminar):**
-5. ¿Qué recibe el endpoint y qué devuelve?
-6. ¿Cómo elimina el equipo de la lista?
-7. ¿Cómo maneja el caso de "equipo no encontrado"? ¿Qué código HTTP devuelve y por qué?
-
-**Sobre la arquitectura (responde aunque el código "ya te funcionara"):**
-8. ¿Por qué la lógica va en `equipo_service.py` y los endpoints en `equipos.py`? ¿Qué ventaja tiene separar estas capas?
-9. ¿Qué papel juegan `EquipoCreate` y `EquipoResponse` de `schemas/equipo.py`?
-10. ¿Qué es `HTTPException` y por qué se usa para reflejar errores?
-
-> Consejo: redacta como si le explicaras tu solución a un compañero. Respuestas tipo "copié y pegó" o sin justificación no demuestran comprensión. La captura de Swagger debe respaldar el comportamiento que describes.
-
----
-
-## 🍴 Cómo entregar (flujo con GitHub)
-
-Vas a trabajar sobre **una copia propia** del proyecto usando *fork* y entregarás el **link de tu fork**.
-
-### 1. Haz un *fork* del repositorio
-
-Entra al repositorio original en GitHub y pulsa el botón **Fork** (arriba a la derecha). Esto crea una **copia del proyecto en tu cuenta** de GitHub.
-
-### 2. Clona tu fork en tu máquina
-
-Abre la terminal y clona **tu fork** (usa el enlace de tu copia, no el original):
-
-```bash
-git clone https://github.com/TU_USUARIO/api_minimal.git
-cd api_minimal
-```
-
-### 3. (Recomendado) Crea una rama para tu solución
-
-```bash
-git checkout -b solucion
-```
-
-### 4. Completa el reto
-
-Implementa los endpoints faltantes (`PUT` y `DELETE`) siguiendo las instrucciones de este README y prueba la API.
-
-### 5. Confirma y sube tus cambios a tu fork
-
-```bash
-git add .
-git commit -m "Completo el CRUD de la API de equipos"
-git push origin solucion
-```
-
-### 6. Entrega el link de tu fork
-
-Copia el enlace de tu repositorio fork (por ejemplo `https://github.com/TU_USUARIO/api_minimal`) y **envíalo como tu entrega**, junto con la **captura de Swagger** y la **explicación escrita** de las partes 1 y 2. Asegúrate de que tu fork contenga tus cambios subidos antes de enviarlo.
+1. Levanta el servidor con `uvicorn app.main:app --reload`.
+2. Abre `http://127.0.0.1:8000/docs`.
+3. Crea un par de equipos con `POST /equipos/`.
+4. Lista los equipos con `GET /equipos/`.
+5. Actualiza uno con `PUT /equipos/{equipo_id}` (prueba también con un id inexistente → `404`, y con el nombre de otro equipo ya registrado → `400`).
+6. Elimina uno con `DELETE /equipos/{equipo_id}` (prueba también eliminarlo dos veces → la segunda debe dar `404`).

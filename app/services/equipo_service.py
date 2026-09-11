@@ -42,3 +42,26 @@ def crear_equipo(equipo: EquipoCreate) -> dict:
     _next_id += 1
 
     return nuevo
+
+def actualizar_equipo(equipo_id: int, equipo: EquipoCreate) -> dict:
+    equipo_existente = obtener_equipo(equipo_id)
+
+    nombre_duplicado = any(
+        e["nombre"].lower() == equipo.nombre.lower() and e["id"] != equipo_id
+        for e in _equipos
+    )
+    if nombre_duplicado:
+        raise HTTPException(
+            status_code=400,
+            detail="Ya existe un equipo con ese nombre",
+        )
+
+    equipo_existente["nombre"] = equipo.nombre
+    equipo_existente["categoria"] = equipo.categoria
+
+    return equipo_existente
+
+def eliminar_equipo(equipo_id: int) -> None:
+    equipo_existente = obtener_equipo(equipo_id)
+    _equipos.remove(equipo_existente)
+    

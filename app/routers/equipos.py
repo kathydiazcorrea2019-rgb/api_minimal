@@ -2,7 +2,9 @@ from fastapi import APIRouter, status
 
 from app.schemas.equipo import EquipoCreate, EquipoResponse
 from app.services.equipo_service import (
+    actualizar_equipo,
     crear_equipo,
+    eliminar_equipo,
     listar_equipos,
     obtener_equipo,
 )
@@ -23,5 +25,15 @@ def get_equipo(equipo_id: int):
 @router.post("/", response_model=EquipoResponse, status_code=status.HTTP_201_CREATED)
 def post_equipo(equipo: EquipoCreate):
     return crear_equipo(equipo)
+
+
+@router.put("/{equipo_id}", response_model=EquipoResponse)
+def put_equipo(equipo_id: int, equipo: EquipoCreate):
+    return actualizar_equipo(equipo_id, equipo)
+
+
+@router.delete("/{equipo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_equipo(equipo_id: int):
+    eliminar_equipo(equipo_id)
 
 
